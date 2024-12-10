@@ -1,0 +1,63 @@
+# Hello! This is Eunhyuk Doo, an intern at SSL who wrote the code. I will explain how to use this code. 
+#First, find the CSS selector code for the title of the table you want, and then change the information in the parentheses on line 19 to that CSS selector code! There is an example on line 20.
+
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+import os
+
+def process_url(url):
+    # Request the web page
+    response = requests.get(url)
+    response.raise_for_status()  # Check if the request was successful
+
+    # Parse the HTML using BeautifulSoup
+    soup = BeautifulSoup(response.content, 'html.parser')
+
+    # Find all H2[class="depth1_title"] elements
+    h2_elements = soup.select('H4[class="depth2_title"]')
+    #view01 .contents H2[class="depth1_title"]
+    
+    # Extract text from each H2 element and repeat according to the number of rows in the first column of the table
+    data = []
+    if not h2_elements:
+        data.append(("No information", url))
+    else:
+        for h2 in h2_elements:
+            text = h2.get_text(strip=True)
+            
+            # Find the table that follows the corresponding title
+            table = h2.find_next('table')
+            if table:
+                first_column_cells = table.find_all('tr')[1:]  # Assume the first row is the header and exclude it
+                row_count = len(first_column_cells)
+                data.extend([(text, url)] * (row_count + 1))
+            else:
+                data.append(("No information", url))
+    
+    return data
+
+# Set multiple URLs
+urls = [
+    "https://oasis.kiom.re.kr/oasis/herb/monoDetailView_M05.jsp?idx=1&tab=5#view02",
+    "https://oasis.kiom.re.kr/oasis/herb/monoDetailView_M05.jsp?idx=2&tab=5#view02",
+    "https://oasis.kiom.re.kr/oasis/herb/monoDetailView_M05.jsp?idx=3&tab=5#view02"
+]
+
+# Process all URLs
+all_data = []
+for url in urls:
+    result = process_url(url)
+    all_data.extend(result)
+
+# Create a DataFrame
+df = pd.DataFrame(all_data, columns=['Title', 'URL'])
+
+# Save to an Excel file
+file_name = 'output.xlsx'
+df.to_excel(file_name, index=False)
+
+# Open the Excel file (for Windows)
+os.startfile(file_name)
+
+print(f"{file_name} file has been successfully created and opened.")
